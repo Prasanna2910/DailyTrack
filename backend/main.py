@@ -31,14 +31,10 @@ except Exception as e:
 
 app = FastAPI()
 
-# CORS configuration
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "").split(",")
-DEFAULT_ORIGINS = ["http://localhost:5173", "http://localhost:3000", "https://your-app.vercel.app"]
-origins = list(set(DEFAULT_ORIGINS + [o.strip() for o in ALLOWED_ORIGINS if o.strip()]))
-
+# Allow CORS for frontend development and production
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

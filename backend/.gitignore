@@ -1,0 +1,7 @@
+# Ignore env files with credentials
+.env
+.placeholder
+__pycache__/
+*.pyc
+*.pyo
+*.pyd

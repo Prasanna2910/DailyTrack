@@ -5,15 +5,45 @@
 const STORAGE_KEY = 'dailytrack_tasks';
 const EVENT_NAME  = 'task_data_updated';
 
+const toDateObject = (value) => {
+  if (!value) return null;
+  if (typeof value === 'string' || typeof value === 'number') {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  if (typeof value?.toDate === 'function') {
+    const d = value.toDate();
+    return d instanceof Date && !Number.isNaN(d.getTime()) ? d : null;
+  }
+  return null;
+};
+
+const serializeTask = (task) => {
+  const createdDate = toDateObject(task.createdAt) || toDateObject(task.createdAtISO) || new Date();
+  return {
+    ...task,
+    createdAtISO: createdDate.toISOString(),
+  };
+};
+
+const normalizeTask = (task) => {
+  const createdDate = toDateObject(task.createdAt) || toDateObject(task.createdAtISO);
+  return {
+    ...task,
+    createdAt: createdDate ? { toDate: () => createdDate } : null,
+  };
+};
+
 // Helper: Get data from storage
 const getStorageData = () => {
   const data = localStorage.getItem(STORAGE_KEY);
-  return data ? JSON.parse(data) : [];
+  const raw = data ? JSON.parse(data) : [];
+  return raw.map(normalizeTask);
 };
 
 // Helper: Save data and notify listeners
 const saveAndNotify = (tasks) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks.map(serializeTask)));
   window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: tasks }));
 };
 
@@ -49,12 +79,15 @@ export function subscribeTasksByUser(email, callback) {
  */
 export async function addTask(taskData) {
   const tasks = getStorageData();
+  const now = new Date();
   const newTask = {
     ...taskData,
     id: Math.random().toString(36).substr(2, 9),
     status: taskData.status || 'todo',
-    createdAt: { toDate: () => new Date() }, // Mimic Firestore Timestamp structure
-    updatedAt: new Date().toISOString()
+    createdAt: { toDate: () => now }, // Mimic Firestore Timestamp structure
+    createdAtISO: now.toISOString(),
+    updatedAt: now.toISOString(),
+    completedAt: taskData.status === 'done' ? now.toISOString() : null,
   };
   
   tasks.unshift(newTask); // Add to top
@@ -70,10 +103,18 @@ export async function updateTask(id, updates) {
   const index = tasks.findIndex(t => t.id === id);
   if (index === -1) return;
 
+  const previous = tasks[index];
+  const nextStatus = updates.status ?? previous.status;
+  const nowIso = new Date().toISOString();
+  const completedAt = nextStatus === 'done'
+    ? (previous.completedAt || nowIso)
+    : null;
+
   tasks[index] = { 
-    ...tasks[index], 
+    ...previous,
     ...updates, 
-    updatedAt: new Date().toISOString() 
+    completedAt,
+    updatedAt: nowIso,
   };
   
   saveAndNotify(tasks);

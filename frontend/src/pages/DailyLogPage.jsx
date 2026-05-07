@@ -127,7 +127,7 @@ export default function DailyLogPage() {
     setError('');
     setSuccess('');
     try {
-      await upsertDailyWorkLog({
+      const updatedLog = await upsertDailyWorkLog({
         dateKey: dateKey,
         entities: entities.map((e) => ({
           person: e.person,
@@ -136,6 +136,13 @@ export default function DailyLogPage() {
           status: e.status,
         })),
       });
+      
+      // Update local logs state immediately so other components (Dashboard) reflect it
+      setLogs((prev) => {
+        const filtered = prev.filter(l => l.dateKey !== dateKey);
+        return [updatedLog, ...filtered];
+      });
+      
       setSuccess(todayLog ? 'Entry updated successfully.' : 'Entry saved successfully.');
     } catch (err) {
       setError(err.message || 'Could not save today’s update.');

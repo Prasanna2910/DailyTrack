@@ -58,17 +58,26 @@ export default function DailyLogPage() {
     return [];
   };
 
+  const [lastLoadedDateKey, setLastLoadedDateKey] = useState(null);
+
   useEffect(() => {
-    if (todayLog) {
+    // Only sync from DB if we haven't loaded for this dateKey yet,
+    // or if the dateKey has changed.
+    if (todayLog && lastLoadedDateKey !== dateKey) {
       setEntities(readEntities(todayLog));
+      setLastLoadedDateKey(dateKey);
       setDraft({ person: '', task: '', hours: '', status: 'completed' });
       setEditingIndex(null);
       return;
     }
-    setEntities([]);
-    setDraft({ person: '', task: '', hours: '', status: 'completed' });
-    setEditingIndex(null);
-  }, [todayLog, dateKey]);
+    
+    if (!todayLog && lastLoadedDateKey !== dateKey) {
+      setEntities([]);
+      setLastLoadedDateKey(dateKey);
+      setDraft({ person: '', task: '', hours: '', status: 'completed' });
+      setEditingIndex(null);
+    }
+  }, [todayLog, dateKey, lastLoadedDateKey]);
 
   const setDraftField = (k, v) => setDraft((prev) => ({ ...prev, [k]: v }));
 
